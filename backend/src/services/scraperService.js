@@ -136,84 +136,103 @@ const getAdDetails = async (url, browser) => {
 
 // --- Funcția principală, acum cu filtru pentru Storia ---
 const scrapeOLX = async () => {
-  console.log("🚀 Se pornește scraper-ul V3 (Detecție Inteligentă)...");
+  console.log("🚀 Se pornește scraper-ul V4 (Căutare Inteligentă)...");
 
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
-  const page = await browser.newPage();
 
-  const OLX_URL =
-    "https://www.olx.ro/imobiliare/apartamente-garsoniere-de-vanzare/cluj-napoca/";
-  console.log(`Navighez către: ${OLX_URL}`);
-  await page.goto(OLX_URL, { waitUntil: "networkidle2" });
+  // NOU: Definim o limită pentru a nu căuta la nesfârșit
+  const MAX_PAGES_TO_CHECK = 5;
+  let foundNewAd = false;
 
-  try {
-    await page.waitForSelector('[data-testid="accept-cookies-button"]', {
-      timeout: 5000,
-    });
-    await page.click('[data-testid="accept-cookies-button"]');
-    console.log("Am închis pop-up-ul de cookie-uri.");
-  } catch (e) {
-    console.log("Pop-up-ul de cookie-uri nu a apărut.");
-  }
+  for (
+    let pageNum = 1;
+    pageNum <= MAX_PAGES_TO_CHECK && !foundNewAd;
+    pageNum++
+  ) {
+    const page = await browser.newPage();
 
-  const adUrls = await page.$$eval('[data-cy="l-card"] a', (links) =>
-    links.map((link) => link.href)
-  );
-  console.log(
-    `Am găsit ${adUrls.length} link-uri de anunțuri pe prima pagină.`
-  );
+    // NOU: Construim URL-ul dinamic, adăugând numărul paginii
+    const OLX_URL = `https://www.olx.ro/imobiliare/apartamente-garsoniere-de-vanzare/cluj-napoca/?page=${pageNum}`;
+    console.log(`🔎 Verific pagina ${pageNum}: ${OLX_URL}`);
 
-  for (const url of adUrls) {
-    // --- FILTRU NOU: Ignorăm link-urile către Storia ---
-    if (url.includes("storia.ro")) {
-      console.log(`- Ignorat (Link Storia): ${url}`);
-      continue;
-    }
+    await page.goto(OLX_URL, { waitUntil: "networkidle2" });
 
-    const existingAd = await prisma.ad.findUnique({ where: { url } });
-    if (existingAd) {
-      console.log(`- Ignorat (Existent în BD): ${url}`);
-      continue;
-    }
-
-    const adDetails = await getAdDetails(url, browser);
-
-    if (adDetails) {
-      // 1. Salvăm în baza de date
-      const newAd = await prisma.ad.create({
-        data: adDetails,
+    // Închidem pop-up-ul de cookie-uri dacă apare (cod defensiv)
+    try {
+      await page.waitForSelector('[data-testid="accept-cookies-button"]', {
+        timeout: 3000,
       });
-      console.log(`💾 Salvat în baza de date: ${newAd.title}`);
+      await page.click('[data-testid="accept-cookies-button"]');
+    } catch (e) {
+      /* Nu facem nimic dacă nu apare */
+    }
 
-      // NOU - Pasul 2: Curățăm numărul de telefon de spații sau alte caractere
-      const cleanedPhone = newAd.phone.replace(/\D/g, ""); // Elimină tot ce nu e cifră
-      const realRecipient = `whatsapp:+40${cleanedPhone.substring(1)}`;
+    // Extragem link-urile de pe pagina curentă
+    const adUrls = await page.$$eval('[data-cy="l-card"] a', (links) =>
+      links.map((link) => link.href)
+    );
 
-      // NOU - Pasul 3: Decidem destinatarul final
-      // Dacă variabila de test există în .env, o folosim. Altfel, folosim numărul real.
-      const finalRecipient =
-        process.env.MY_TEST_WHATSAPP_NUMBER || realRecipient;
+    if (adUrls.length === 0) {
+      console.log(
+        "Nu am mai găsit anunțuri pe această pagină. Oprire căutare."
+      );
+      break; // Ieșim din buclă dacă pagina nu are anunțuri
+    }
 
-      // Pasul 4: Creăm mesajul personalizat
-      const messageBody = `Buna ziua! Am gasit anuntul dvs. "${newAd.title}" pe OLX. Doresc sa va prezint o oferta de colaborare. Sunteti disponibil(a) pentru o scurta discutie?`;
-
-      // Pasul 5: Trimitem mesajul WhatsApp
-      await sendWhatsAppMessage(finalRecipient, messageBody);
-
-      // Adăugăm un log pentru a ști unde s-a trimis mesajul
-      if (process.env.MY_TEST_WHATSAPP_NUMBER) {
-        console.log(
-          `REDIRECT: Mesajul pentru ${realRecipient} a fost trimis la numărul de test.`
-        );
+    // NOU: Iterăm prin link-uri și ne oprim la primul anunț nou găsit
+    for (const url of adUrls) {
+      if (url.includes("storia.ro")) {
+        console.log(`- Ignorat (Link Storia): ${url.substring(0, 50)}...`);
+        continue;
       }
+
+      const existingAd = await prisma.ad.findUnique({ where: { url } });
+
+      if (!existingAd) {
+        // --- AM GĂSIT UN ANUNȚ NOU! ---
+        console.log(`✅ Anunț nou găsit! Procesez: ${url}`);
+        foundNewAd = true; // Setăm steagul pentru a opri bucla exterioară
+
+        const adDetails = await getAdDetails(url, browser);
+
+        if (adDetails) {
+          const newAd = await prisma.ad.create({ data: adDetails });
+          console.log(`💾 Salvat în baza de date: ${newAd.title}`);
+
+          // Logica de trimitere WhatsApp rămâne la fel
+          const cleanedPhone = newAd.phone.replace(/\D/g, "");
+          const realRecipient = `whatsapp:+40${cleanedPhone.substring(1)}`;
+          const finalRecipient =
+            process.env.MY_TEST_WHATSAPP_NUMBER || realRecipient;
+          const messageBody = `Buna ziua! Am gasit anuntul dvs. "${newAd.title}" pe OLX. Doresc sa va prezint o oferta de colaborare. Sunteti disponibil(a) pentru o scurta discutie?`;
+
+          await sendWhatsAppMessage(finalRecipient, messageBody);
+          if (process.env.MY_TEST_WHATSAPP_NUMBER) {
+            console.log(
+              `REDIRECT: Mesajul pentru ${realRecipient} a fost trimis la numărul de test.`
+            );
+          }
+        }
+
+        break; // Ieșim din bucla curentă (for...of)
+      }
+    }
+    await page.close();
+
+    if (foundNewAd) {
+      console.log("🏁 Misiune îndeplinită. Oprire căutare generală.");
+    } else {
+      console.log(
+        `Trec la pagina următoare. Toate cele ${adUrls.length} anunțuri de pe pagina ${pageNum} erau deja salvate.`
+      );
     }
   }
 
   await browser.close();
-  console.log("🏁 Procesul de scraping V3 s-a încheiat.");
+  console.log("✅ Procesul de scraping s-a încheiat.");
 };
 
 module.exports = { scrapeOLX };

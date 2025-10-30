@@ -9,23 +9,46 @@ router.post("/reply", async (req, res) => {
   const body = req.body.Body;
   console.log(`📥 Webhook primit de la ${from}: "${body}"`);
 
-  const phoneToSearch = from.replace("whatsapp:+40", "0");
+  // --- LOGICĂ NOUĂ ȘI CORECTATĂ: Filtrarea cuvintelor întregi ---
+  const negativeKeywords = [
+    "nu",
+    "refuz",
+    "stop",
+    "greseala",
+    "anuleaza",
+    // Am scos 'nu sunt' etc. pentru că 'nu' este suficient dacă e cuvânt întreg
+  ];
+
+  // Construim o expresie regulată care caută oricare dintre cuvintele cheie
+  // \b - reprezintă o limită de cuvânt (spațiu, punctuație, etc.)
+  // 'i' - face căutarea insensibilă la majuscule (case-insensitive)
+  const negativeRegex = new RegExp(
+    `\\b(${negativeKeywords.join("|")})\\b`,
+    "i"
+  );
+
+  if (negativeRegex.test(body)) {
+    console.log(`💬 Răspuns negativ detectat. Nu se va trimite notificare.`);
+    return res.status(200).send("OK - Negative Reply");
+  }
+  // --- Sfârșitul logicii noi ---
 
   try {
-    const ad = await prisma.ad.findFirst({
-      where: { phone: { contains: phoneToSearch.substring(1) } },
+    const latestAd = await prisma.ad.findFirst({
+      orderBy: { createdAt: "desc" },
     });
 
-    if (ad) {
-      await sendNotificationEmail(ad, body);
+    if (latestAd) {
+      console.log(
+        `[MOD DE TEST] Răspuns pozitiv/neutru. Se trimite email pentru: "${latestAd.title}"`
+      );
+      await sendNotificationEmail(latestAd, body);
       await prisma.ad.update({
-        where: { id: ad.id },
+        where: { id: latestAd.id },
         data: { status: "REPLIED" },
       });
     } else {
-      console.warn(
-        `[AVERTISMENT] Nu am găsit niciun anunț pentru numărul ${phoneToSearch}`
-      );
+      console.warn(`[AVERTISMENT] Nu am găsit niciun anunț în baza de date.`);
     }
   } catch (error) {
     console.error("Eroare în procesarea webhook-ului:", error);
