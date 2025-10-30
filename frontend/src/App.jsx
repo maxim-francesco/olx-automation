@@ -1,24 +1,20 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import "./App.css"; // Vom crea acest fișier pentru stilizare
+import "./App.css";
 
 function App() {
-  // 1. Creăm o variabilă "state" unde vom stoca lista de anunțuri.
-  // Inițial, este un array gol.
   const [ads, setAds] = useState([]);
-  const [loading, setLoading] = useState(true); // O variabilă pentru a afișa un mesaj de încărcare
+  const [loading, setLoading] = useState(true);
 
-  // 2. Folosim "useEffect" pentru a rula cod la încărcarea componentei.
-  // Array-ul gol `[]` de la final asigură că se rulează o singură dată.
   useEffect(() => {
-    // Definim funcția care preia datele
     const fetchAds = async () => {
       try {
-        // 3. Facem o cerere GET către API-ul nostru.
-        // Asigură-te că serverul backend rulează pe portul 3000!
-        const response = await axios.get("http://localhost:3000/api/ads");
+        // --- AICI ESTE MODIFICAREA ---
+        // Construim URL-ul complet folosind variabila din .env
+        const apiUrl = `${import.meta.env.VITE_API_BASE_URL}/api/ads`;
+        // Folosim noul URL în cererea axios
+        const response = await axios.get(apiUrl);
 
-        // 4. Actualizăm state-ul cu datele primite de la server.
         setAds(response.data);
       } catch (error) {
         console.error("Eroare la preluarea datelor din backend:", error);
@@ -26,15 +22,13 @@ function App() {
           "Nu am putut încărca datele. Verifică dacă serverul backend este pornit."
         );
       } finally {
-        // Indiferent dacă a reușit sau nu, oprim starea de încărcare
         setLoading(false);
       }
     };
 
-    fetchAds(); // Apelăm funcția
+    fetchAds();
   }, []);
 
-  // Afișăm un mesaj de încărcare cât timp se preiau datele
   if (loading) {
     return (
       <div className="App">
@@ -43,7 +37,6 @@ function App() {
     );
   }
 
-  // 5. Afișăm datele într-un tabel.
   return (
     <div className="App">
       <h1>Panou de Control - Anunțuri OLX</h1>
@@ -59,7 +52,6 @@ function App() {
           </tr>
         </thead>
         <tbody>
-          {/* 6. Iterăm prin fiecare anunț și creăm un rând în tabel */}
           {ads.map((ad) => (
             <tr key={ad.id}>
               <td>{ad.title}</td>
