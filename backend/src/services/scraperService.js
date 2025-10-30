@@ -141,8 +141,8 @@ const scrapeOLX = async () => {
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    executablePath:
-      "/opt/render/.cache/puppeteer/chrome/linux-142.0.7444.59/chrome-linux64/chrome",
+    // THE FIX: Ask Puppeteer to provide the correct path dynamically
+    executablePath: puppeteer.executablePath(),
   });
 
   // NOU: Definim o limită pentru a nu căuta la nesfârșit
