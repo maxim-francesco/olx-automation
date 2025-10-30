@@ -139,8 +139,15 @@ const scrapeOLX = async () => {
   console.log("🚀 Se pornește scraper-ul V3 (Detecție Inteligentă)...");
 
   const browser = await puppeteer.launch({
-    headless: false, // Lasă 'false' pentru a vedea ce se întâmplă
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: "new", // Modul corect pentru servere
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage", // Previne anumite erori in medii cu resurse limitate
+      "--single-process",
+    ],
+    executablePath:
+      "/opt/render/.cache/puppeteer/chrome/linux-123.0.6312.58/chrome-linux64/chrome",
   });
   const page = await browser.newPage();
 
