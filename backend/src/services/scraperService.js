@@ -144,7 +144,6 @@ const scrapeOLX = async () => {
     executablePath: puppeteer.executablePath(),
   });
 
-  // NOU: Definim o limită pentru a nu căuta la nesfârșit
   const MAX_PAGES_TO_CHECK = 5;
   let foundNewAd = false;
 
