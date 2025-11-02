@@ -140,7 +140,10 @@ const scrapeOLX = async () => {
 
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox", // Obligatoriu pentru a rula în container
+      "--disable-dev-shm-usage", // Previne erori de memorie partajată
+    ],
     executablePath: puppeteer.executablePath(),
   });
 
