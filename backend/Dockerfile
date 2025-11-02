@@ -55,9 +55,6 @@ RUN npm install
 # 6. Copiem restul codului aplicației
 COPY . .
 
-# 7. Generăm clientul Prisma
-RUN npx prisma generate
-
 # 8. Expunem portul pe care va rula aplicația
 EXPOSE 3000
 
