@@ -46,16 +46,22 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     --no-install-recommends
 
-# 4. Copiem fișierele de pachete
-COPY package.json package-lock.json ./
-
-# 5. Instalăm pachetele Node.js (inclusiv puppeteer, care va descărca browserul)
-RUN npm install
-
-# 6. Copiem restul codului aplicației
-COPY . .
-
-# 8. Expunem portul pe care va rula aplicația
+# NOU: Îi spunem lui Puppeteer unde să salveze browser-ul.
+    # Această cale TREBUIE să fie identică cu cea la care atașăm discul pe Render.
+    ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+    
+    # 4. Copiem fișierele de pachete
+    COPY package.json package-lock.json ./
+    
+    # 5. Instalăm pachetele Node.js (inclusiv puppeteer)
+    RUN npm install
+    
+    # NOU: Instalăm browserul Chrome în locația cache
+    RUN npx puppeteer browsers install chrome
+    
+    # 6. Copiem restul codului aplicației
+    COPY . .
+    
 EXPOSE 3000
 
 # 9. Comanda care pornește aplicația
