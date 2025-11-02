@@ -46,23 +46,28 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     --no-install-recommends
 
-# NOU: Îi spunem lui Puppeteer unde să salveze browser-ul.
-    # Această cale TREBUIE să fie identică cu cea la care atașăm discul pe Render.
-    ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
-    
-    # 4. Copiem fișierele de pachete
-    COPY package.json package-lock.json ./
-    
-    # 5. Instalăm pachetele Node.js (inclusiv puppeteer)
-    RUN npm install
-    
-    # NOU: Instalăm browserul Chrome în locația cache
-    RUN npx puppeteer browsers install chrome
-    
-    # 6. Copiem restul codului aplicației
-    COPY . .
-    
+# Îi spunem lui Puppeteer unde să salveze browser-ul.
+# Calea TREBUIE să fie identică cu cea la care atașăm discul pe Render.
+ENV PUPPETEER_CACHE_DIR=/opt/render/.cache/puppeteer
+
+# 4. Copiem fișierele de pachete
+COPY package.json package-lock.json ./
+
+# 5. [SOLUȚIA NUCLEARĂ] Ștergem forțat fișierul de lock
+# Asta forțează npm install să citească package.json (care știm că e corect)
+RUN rm -f package-lock.json
+
+# 6. Instalăm pachetele Node.js (acum va folosi package.json ca sursă)
+RUN npm install
+
+# 7. Instalăm browserul Chrome în locația cache
+RUN npx puppeteer browsers install chrome
+
+# 8. Copiem restul codului aplicației
+COPY . .
+
+# 9. Expunem portul
 EXPOSE 3000
 
-# 9. Comanda care pornește aplicația
+# 10. Comanda care pornește aplicația
 CMD ["sh", "-c", "npx prisma generate && node src/app.js"]
