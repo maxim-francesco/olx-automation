@@ -141,6 +141,7 @@ const scrapeOLX = async () => {
   const browser = await puppeteer.launch({
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    // Folosim calea dinamică
     executablePath: puppeteer.executablePath(),
   });
 
