@@ -59,4 +59,4 @@ COPY . .
 EXPOSE 3000
 
 # 9. Comanda care pornește aplicația
-CMD ["node", "src/app.js"]
+CMD ["sh", "-c", "npx prisma generate && node src/app.js"]
