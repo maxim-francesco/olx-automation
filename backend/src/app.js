@@ -20,6 +20,6 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/ads", adRoutes); // <-- ADAUGĂ ASTA
 app.use("/api/system", systemRoutes); // <-- ADAUGĂ ASTA
 
-app.listen(port, () => {
-  console.log(`Serverul rulează pe http://localhost:${port}`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Serverul rulează pe portul ${port}`);
 });
